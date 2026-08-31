@@ -1,146 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>劍南站公車時刻表</title>
+  <style>
+    body {
+      font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif;
+      background-color: #ffffff;
+      color: #333;
+      padding: 20px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      color: #000000;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 10px;
+      font-size: 1.8em;
+    }
+    .status-text {
+      text-align: center;
+      color: #666;
+      font-size: 0.9em;
+      margin-bottom: 15px;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .destination-card {
+      background-color: #f0f0f5;
+      padding: 15px;
+      border-radius: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .destination-card h2 {
+      color: #34495e;
+      margin: 0 0 10px 0;
+      text-align: center;
+      font-size: 1.4em;
+      border-bottom: 1px solid #74767d;
+      padding-bottom: 8px;
+    }
+    .bus-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: flex-start;
+    }
+    .bus-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #fff;
+      padding: 10px 16px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      min-width: 90px;
+    }
+    .bus-number {
+      font-weight: bold;
+      color: #2c3e50;
+      font-size: 1.3em;
+    }
+    .bus-divider {
+      width: 80%;
+      height: 1px;
+      background-color: #ccc;
+      margin: 5px 0;
+    }
+    .bus-time {
+      font-size: 1em;
+      color: #545252;
+    }
+    .bus-time.urgent {
+      color: #2e7d32;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
 
-    <style>
-      .bus-dashboard {
-        font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif;
-        background-color: #ffffff;
-        color: #333;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-      .bus-dashboard h1 {
-        text-align: center;
-        color: #000000;
-        border-bottom: 2px solid #e0e0e0;
-        padding-bottom: 10px;
-        font-size: 2em;
-      }
-      .bus-dashboard .container {
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-      }
-      .bus-dashboard .destination-card {
-        background-color: #f0f0f5;
-        padding: 15px;
-        border-radius: 15px;
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-      }
-      .bus-dashboard .destination-card h2 {
-        color: #34495e;
-        margin: 0 0 10px 0;
-        text-align: center;
-        font-size: 1.5em;
-        border-bottom: 1px solid #74767d;
-        padding-bottom: 8px;
-      }
-      .bus-dashboard .bus-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        justify-content: flex-start;
-      }
-      .bus-dashboard .bus-card {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background-color: #fff;
-        padding: 12px 20px;
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        min-width: 100px;
-      }
-      .bus-dashboard .bus-number {
-        font-weight: bold;
-        color: #2c3e50;
-        font-size: 1.4em;
-      }
-      .bus-dashboard .bus-divider {
-        width: 80%;
-        height: 1px;
-        background-color: #ccc;
-        margin: 6px 0;
-      }
-      .bus-dashboard .bus-time {
-        font-size: 1.1em;
-        color: #545252;
-      }
-      .bus-dashboard .bus-time.urgent {
-        color: #2e7d32;
-        font-weight: bold;
-      }
-    </style>
+  <div class="bus-dashboard">
+    <h1>劍南站公車時刻表</h1>
+    <div class="status-text" id="status">即時資料載入中...</div>
+    <div class="container" id="bus-container"></div>
+  </div>
 
-    <div class="bus-dashboard">
-      <h1>劍南站公車</h1>
-      <div class="container">
-        <div class="destination-card"><h2>芝山</h2><div class="bus-grid">
+  <script>
+    const busIdToName = {
+      '187559': '208', '213656': '247區', '28101': '267', '23484': '287區',
+      '197118': '556', '22703': '646', '30212': '北環', '189074': '957',
+      '11993': '紅2', '12227': '紅3區', '174553': '紅3'
+    };
+
+    const destinations = {
+      '芝山': ['267'],
+      '士林': ['北環', '957'],
+      '劍潭': ['556', '646', '紅3區', '紅3'],
+      '圓山': ['208', '247區', '287區', '紅2']
+    };
+
+    async function loadBusData() {
+      const statusEl = document.getElementById('status');
+      const containerEl = document.getElementById('bus-container');
+
+      try {
+        const apiUrl = 'https://pda5284.gov.taipei/MQS/StopLocationDyna?stoplocationid=1000695';
+        const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(apiUrl);
+        
+        const response = await fetch(proxyUrl);
+        const jsonContent = await response.json();
+
+        let groupedData = { '芝山': [], '士林': [], '劍潭': [], '圓山': [] };
+
+        if (jsonContent.Stop && Array.isArray(jsonContent.Stop)) {
+          jsonContent.Stop.forEach(bus => {
+            const busId = String(bus.id || '');
+            if (busIdToName[busId]) {
+              const busNumber = busIdToName[busId];
+              const n1Data = (bus.n1 || '').split(',');
+
+              let arrivalTime = "未發車";
+              let busTimeClass = "";
+
+              if (n1Data.length >= 8) {
+                const eta1 = n1Data[3];
+                const eta2 = n1Data[7];
+                const seconds = parseInt(eta2, 10);
+
+                if (eta1 === '-1' && eta2 === '-4') {
+                  arrivalTime = '未營運';
+                } else if (eta1 === '-1' && eta2 === '-3') {
+                  arrivalTime = '末班已過';
+                } else if (eta1 === '0' || (eta2 === '0' && eta1 === '')) {
+                  arrivalTime = '進站中';
+                  busTimeClass = 'urgent';
+                } else if (eta1 && eta1.includes('&#x3a;')) {
+                  arrivalTime = eta1.replace('&#x3a;', ':') + '發車';
+                } else if (!isNaN(seconds) && seconds > 0) {
+                  const calculatedMinutes = Math.floor(seconds / 60);
+                  if (seconds < 60) {
+                    arrivalTime = '衝啊！';
+                    busTimeClass = 'urgent';
+                  } else if (calculatedMinutes <= 6) {
+                    arrivalTime = `${calculatedMinutes} 分`;
+                    busTimeClass = 'urgent';
+                  } else {
+                    arrivalTime = `${calculatedMinutes} 分`;
+                  }
+                }
+              }
+
+              for (const [dest, routes] of Object.entries(destinations)) {
+                if (routes.includes(busNumber)) {
+                  groupedData[dest].push({
+                    number: busNumber,
+                    time: arrivalTime,
+                    class: busTimeClass
+                  });
+                  break;
+                }
+              }
+            }
+          });
+        }
+
+        let destCardsHtml = "";
+        for (const [dest, items] of Object.entries(groupedData)) {
+          destCardsHtml += `<div class="destination-card"><h2>${dest}</h2>`;
+          if (items.length > 0) {
+            destCardsHtml += '<div class="bus-grid">';
+            items.forEach(item => {
+              const timeClass = `bus-time ${item.class}`.trim();
+              destCardsHtml += `
                 <div class="bus-card">
-                    <span class="bus-number">267</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">12 分</span>
+                  <span class="bus-number">${item.number}</span>
+                  <div class="bus-divider"></div>
+                  <span class="${timeClass}">${item.time}</span>
                 </div>
-                </div></div><div class="destination-card"><h2>士林</h2><div class="bus-grid">
-                <div class="bus-card">
-                    <span class="bus-number">957</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">24 分</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">北環</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">20 分</span>
-                </div>
-                </div></div><div class="destination-card"><h2>劍潭</h2><div class="bus-grid">
-                <div class="bus-card">
-                    <span class="bus-number">556</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">末班已過</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">646</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">末班已過</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">紅3</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">未營運</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">紅3區</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">22 分</span>
-                </div>
-                </div></div><div class="destination-card"><h2>圓山</h2><div class="bus-grid">
-                <div class="bus-card">
-                    <span class="bus-number">208</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time urgent">衝啊！</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">247區</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">末班已過</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">287區</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">7 分</span>
-                </div>
-                
-                <div class="bus-card">
-                    <span class="bus-number">紅2</span>
-                    <div class="bus-divider"></div>
-                    <span class="bus-time">9 分</span>
-                </div>
-                </div></div>
-      </div>
-    </div>
-    
+              `;
+            });
+            destCardsHtml += '</div>';
+          } else {
+            destCardsHtml += '<p style="text-align:center;">目前無資料</p>';
+          }
+          destCardsHtml += '</div>';
+        }
+
+        containerEl.innerHTML = destCardsHtml;
+        const now = new Date();
+        statusEl.innerText = `最後更新：${now.toLocaleTimeString()}`;
+
+      } catch (e) {
+        statusEl.innerText = "資料讀取失敗，請重新整理頁面。";
+      }
+    }
+
+    loadBusData();
+  </script>
+</body>
+</html>
