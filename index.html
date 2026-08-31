@@ -90,8 +90,8 @@
   </div>
 
   <script>
-    // ⚠️ 請在這裡貼上你在 第一步 獲得的 Google Apps Script 部署 URL
-    const gasApiUrl = 'https://script.google.com/macros/s/AKfycbwu72VI536a12RIo_AbE-jRKD969LVA7ts0t129lR9_/dev';
+    // ⚠️ 請確定這裡填的是你的 Google Apps Script URL
+    const gasApiUrl = 'https://script.google.com/macros/s/你的GAS部署ID/exec';
 
     const busIdToName = {
       '187559': '208', '213656': '247區', '28101': '267', '23484': '287區',
@@ -112,7 +112,18 @@
 
       try {
         const response = await fetch(gasApiUrl);
-        const jsonContent = await response.json();
+        const resText = await response.text();
+        
+        let jsonContent;
+        try {
+          jsonContent = JSON.parse(resText);
+        } catch(e) {
+          throw new Error("API傳回非JSON格式內容");
+        }
+
+        if (jsonContent.error) {
+          throw new Error(jsonContent.error);
+        }
 
         let groupedData = { '芝山': [], '士林': [], '劍潭': [], '圓山': [] };
 
@@ -195,7 +206,7 @@
         statusEl.innerText = `最後更新：${now.toLocaleTimeString()}`;
 
       } catch (e) {
-        statusEl.innerText = "資料讀取失敗，請重新整理頁面。";
+        statusEl.innerText = `讀取失敗：${e.message}`;
         console.error(e);
       }
     }
